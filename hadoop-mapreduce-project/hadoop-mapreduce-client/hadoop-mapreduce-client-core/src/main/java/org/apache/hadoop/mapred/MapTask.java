@@ -314,6 +314,7 @@ public class MapTask extends Task {
       } else {
         // If there are reducers then the entire attempt's progress will be 
         // split between the map phase (67%) and the sort phase (33%).
+        //比例是2：1
         mapPhase = getProgress().addPhase("map", 0.667f);
         sortPhase  = getProgress().addPhase("sort", 0.333f);
       }
