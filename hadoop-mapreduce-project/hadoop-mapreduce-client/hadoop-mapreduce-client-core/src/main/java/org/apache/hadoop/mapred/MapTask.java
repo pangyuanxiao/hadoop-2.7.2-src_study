@@ -784,6 +784,7 @@ public class MapTask extends Task {
               mapContext);
 
     try {
+      //输入
       input.initialize(split, mapperContext);
       mapper.run(mapperContext);
       mapPhase.complete();
@@ -912,8 +913,8 @@ public class MapTask extends Task {
     private static final int KEYSTART = 1;         // key offset in acct
     private static final int PARTITION = 2;        // partition offset in acct
     private static final int VALLEN = 3;           // length of value
-    private static final int NMETA = 4;            // num meta ints
-    private static final int METASIZE = NMETA * 4; // size in bytes
+    private static final int NMETA = 4;            // num meta ints offset中的1+indice中的3（partition、kstart、valstart）
+    private static final int METASIZE = NMETA * 4; // size in bytes int占4个bytes
 
     // spill accounting
     private int maxRec;
@@ -982,10 +983,12 @@ public class MapTask extends Task {
       sorter = ReflectionUtils.newInstance(job.getClass("map.sort.class",
             QuickSort.class, IndexedSorter.class), job);
       // buffers and accounting
+      //1024*1024
       int maxMemUsage = sortmb << 20;
       maxMemUsage -= maxMemUsage % METASIZE;
       kvbuffer = new byte[maxMemUsage];
       bufvoid = kvbuffer.length;
+      //一开始为0
       kvmeta = ByteBuffer.wrap(kvbuffer)
          .order(ByteOrder.nativeOrder())
          .asIntBuffer();
@@ -994,6 +997,7 @@ public class MapTask extends Task {
       kvstart = kvend = kvindex;
 
       maxRec = kvmeta.capacity() / NMETA;
+      //1024*1024*0.8
       softLimit = (int)(kvbuffer.length * spillper);
       bufferRemaining = softLimit;
       LOG.info(JobContext.IO_SORT_MB + ": " + sortmb);
@@ -1079,15 +1083,19 @@ public class MapTask extends Task {
                               + valClass.getName() + ", received "
                               + value.getClass().getName());
       }
+      //partitions = job.getNumReduceTasks();
+      //reduce task的数量
       if (partition < 0 || partition >= partitions) {
         throw new IOException("Illegal partition for " + key + " (" +
             partition + ")");
       }
       checkSpillException();
+      //METASIZE=NMATE*4
       bufferRemaining -= METASIZE;
       if (bufferRemaining <= 0) {
         // start spill if the thread is not running and the soft limit has been
         // reached
+        //达到80%
         spillLock.lock();
         try {
           do {
